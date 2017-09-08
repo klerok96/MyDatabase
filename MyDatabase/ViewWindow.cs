@@ -16,7 +16,7 @@ namespace MyDatabase
         string _connectionString;
         int _pageNumber = 0;
         int _pageSize = 10;
-        int _quantityData;
+        int _quantityData = 0;
         //bool _flagProgramStart = false;
         public List<string> DataForBtnUpdate;
         public int FlagSelectedBtn;
@@ -31,19 +31,14 @@ namespace MyDatabase
             dataGridView1.SelectionMode = DataGridViewSelectionMode.FullRowSelect;
 
             DBView();
+
         }
 
         public void DBView()
         {
-            string sqlExpressionDataCount = "SELECT COUNT(*) FROM Cars.dbo.Car";
-
-            using (SqlConnection connection = new SqlConnection(_connectionString))
+            using (CarsEntities contextEntities = new CarsEntities())
             {
-                connection.Open();
-
-                SqlCommand cmd = new SqlCommand(sqlExpressionDataCount, connection);
-
-                _quantityData = (int)cmd.ExecuteScalar();
+                _quantityData = contextEntities.Cars.Count();
             }
 
             Paging();
@@ -64,26 +59,28 @@ namespace MyDatabase
             else
                 BtnPreviousPage.Enabled = true;
 
-            using (SqlConnection connection = new SqlConnection(_connectionString))
+            using (CarsEntities contextEntities = new CarsEntities())
             {
-                connection.Open();
+                var query = (from ca in contextEntities.Cars
+                             join co in contextEntities.Colors on ca.ColorID equals co.ColorID
+                             join di in contextEntities.DiskCars on ca.DiskCarID equals di.DiskCarID
+                             orderby ca.CarID
+                             select new
+                             {
+                                 CarID = ca.CarID,
+                                 CarName = ca.CarName,
+                                 Cost = ca.Cost,
+                                 Power = ca.Power,
+                                 Consumption = ca.Consumption,
+                                 Color = co.ColorName,
+                                 DiskName = di.DiskCarName
+                             }).Skip(_pageNumber * _pageSize).Take(_pageSize);
 
-                string sqlExpressionData = string.Format("WITH num_row " +
-                    "AS(SELECT row_number() OVER(ORDER BY CarID) as nom, *FROM Cars.dbo.Car) " +
-                    "SELECT * FROM num_row " +
-                    "INNER JOIN Cars.dbo.Color ON num_row.ColorID = Color.ColorID " +
-                    "INNER JOIN Cars.dbo.DiskCar ON DiskCar.DiskCarID = num_row.DiskCarID " +
-                    "WHERE nom BETWEEN {0} AND {1}", _pageNumber * _pageSize + 1, (_pageNumber + 1) * _pageSize);
+                var list = query.ToList();
 
-                SqlCommand command = new SqlCommand(sqlExpressionData, connection);
-                SqlDataReader reader = command.ExecuteReader();
-
-                while (reader.Read())
+                foreach (var i in list)
                 {
-
-                    dataGridView1.Rows.Add(reader.GetInt32(1).ToString(), reader.GetString(2),
-                    reader.GetDecimal(3).ToString(), reader.GetInt32(4).ToString(),
-                    reader.GetInt32(5).ToString(), reader.GetString(9), (reader.GetString(11)));
+                    dataGridView1.Rows.Add(i.CarID, i.CarName, i.Cost, i.Power, i.Consumption, i.Color, i.DiskName);
                 }
             }
 
