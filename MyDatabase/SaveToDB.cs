@@ -15,8 +15,6 @@ namespace MyDatabase
     {
         ViewWindow _form;
 
-        string _connectionString;
-
         public SaveToDB()
         {
             InitializeComponent();
@@ -28,8 +26,6 @@ namespace MyDatabase
 
             _form = form;
 
-            _connectionString = @"server=LAPTOP-B6SOJQMR;Initial Catalog=Cars;Integrated Security=True;Persist Security Info=False;";
-
             FieldsFilling();
         }
 
@@ -37,8 +33,6 @@ namespace MyDatabase
         {
             if (_form.FlagSelectedBtn == 1)
             {
-                this.Text = "Update to db";
-
                 List<string> data = _form.DataForBtnUpdate;
 
                 TextBoxCarName.Text = data[1];
@@ -49,29 +43,16 @@ namespace MyDatabase
                 ComboBoxDiskName.Text = data[6];
             }
 
-            string sqlExpressionColor = "SELECT * FROM Color";
-            string sqlExpressionDisk = "SELECT * FROM DiskCar";
-
-            using (SqlConnection connection = new SqlConnection(_connectionString))
+            using (CarsEntities contextEntities = new CarsEntities())
             {
-                connection.Open();
+                var listCar = contextEntities.Colors.ToList();
+                var listDisk = contextEntities.DiskCars.ToList();
 
-                SqlCommand comman = new SqlCommand();
-                comman.Connection = connection;
-                comman.CommandText = sqlExpressionColor;
+                foreach (var i in listCar)
+                    ComboBoxColor.Items.Add(i.ColorName);
 
-                SqlDataReader reader = comman.ExecuteReader();
-
-                while (reader.Read())
-                    ComboBoxColor.Items.Add(reader.GetString(1));
-
-                reader.Close();
-
-                comman.CommandText = sqlExpressionDisk;
-                SqlDataReader readerDisk = comman.ExecuteReader();
-
-                while (readerDisk.Read())
-                    ComboBoxDiskName.Items.Add(readerDisk.GetString(1));
+                foreach (var i in listDisk)
+                   ComboBoxDiskName.Items.Add(i.DiskCarName);
             }
         }
 
@@ -88,27 +69,26 @@ namespace MyDatabase
         void AddToDB()
         {
             string nameCar = TextBoxCarName.Text;
-            string cost = TextBoxCost.Text;
-            string power = TextBoxPower.Text;
-            string consumption = TextBoxConsumption.Text;
-            string color = Convert.ToString(ComboBoxColor.SelectedIndex + 1);
-            string disk = Convert.ToString(ComboBoxDiskName.SelectedIndex + 1);
+            decimal cost = Convert.ToDecimal(TextBoxCost.Text);
+            int power = Convert.ToInt32(TextBoxPower.Text);
+            int consumption = Convert.ToInt32(TextBoxConsumption.Text);
+            int color = ComboBoxColor.SelectedIndex + 1;
+            int disk = ComboBoxDiskName.SelectedIndex + 1;
 
-            string sqlExpression = "INSERT Cars.dbo.Car VALUES (@name, @cost, @power, @consumption, @color, @disk)";
-
-            using (SqlConnection connection = new SqlConnection(_connectionString))
+            var carItem = new Car
             {
-                connection.Open();
+                CarName = nameCar,
+                Cost = cost,
+                Power = power,
+                Consumption = consumption,
+                ColorID = color,
+                DiskCarID = disk,
+            };
 
-                SqlCommand command = new SqlCommand(sqlExpression, connection);
-                command.Parameters.AddWithValue("@name", nameCar);
-                command.Parameters.AddWithValue("@cost", cost);
-                command.Parameters.AddWithValue("@power", power);
-                command.Parameters.AddWithValue("@consumption", consumption);
-                command.Parameters.AddWithValue("@color", color);
-                command.Parameters.AddWithValue("@disk", disk);
-
-                command.ExecuteNonQuery();
+            using (CarsEntities contextEntities = new CarsEntities())
+            {
+                contextEntities.Cars.Add(carItem);
+                contextEntities.SaveChanges();
             }
 
             _form.DBView();
@@ -116,42 +96,38 @@ namespace MyDatabase
 
         void UpdateToDB()
         {
-            string id = _form.DataForBtnUpdate[0];
+            int id = Convert.ToInt32(_form.DataForBtnUpdate[0]);
             string nameCar = TextBoxCarName.Text;
-            string cost = TextBoxCost.Text;
-            string power = TextBoxPower.Text;
-            string consumption = TextBoxConsumption.Text;
-            string color;
-            string disk;
+            decimal cost = Convert.ToDecimal(TextBoxCost.Text);
+            int power = Convert.ToInt32(TextBoxPower.Text);
+            int consumption = Convert.ToInt32(TextBoxConsumption.Text);
+            int color;
+            int disk;
 
             if (ComboBoxColor.SelectedIndex == -1)
-                color = Convert.ToString(ComboBoxColor.Items.IndexOf(ComboBoxColor.Text) + 1);
+                color = ComboBoxColor.Items.IndexOf(ComboBoxColor.Text) + 1;
             else
-                color = Convert.ToString(ComboBoxColor.SelectedIndex + 1);
+                color = ComboBoxColor.SelectedIndex + 1;
 
             if (ComboBoxDiskName.SelectedIndex == -1)
-                disk = Convert.ToString(ComboBoxDiskName.Items.IndexOf(ComboBoxDiskName.Text) + 1);
+                disk = ComboBoxDiskName.Items.IndexOf(ComboBoxDiskName.Text) + 1;
             else
-                disk = Convert.ToString(ComboBoxDiskName.SelectedIndex + 1);
+                disk = ComboBoxDiskName.SelectedIndex + 1;
 
-            string sqlExpression = "UPDATE Cars.dbo.Car " +
-                "SET CarName = @name, Cost = @cost, Power = @power, Consumption = @consumption, ColorID = @color, DiskCarID = @disk " +
-                "WHERE CarID = @id";
-
-            using (SqlConnection connection = new SqlConnection(_connectionString))
+            using (CarsEntities contextEntities = new CarsEntities())
             {
-                connection.Open();
+                Car carItem = (from ca in contextEntities.Cars
+                               where ca.CarID == id
+                               select ca).FirstOrDefault();
 
-                SqlCommand command = new SqlCommand(sqlExpression, connection);
-                command.Parameters.AddWithValue("@name", nameCar);
-                command.Parameters.AddWithValue("@cost", cost);
-                command.Parameters.AddWithValue("@power", power);
-                command.Parameters.AddWithValue("@consumption", consumption);
-                command.Parameters.AddWithValue("@color", color);
-                command.Parameters.AddWithValue("@disk", disk);
-                command.Parameters.AddWithValue("@id", id);
+                carItem.CarName = nameCar;
+                carItem.Cost = cost;
+                carItem.Power = power;
+                carItem.Consumption = consumption;
+                carItem.ColorID = color;
+                carItem.DiskCarID = disk;
 
-                command.ExecuteNonQuery();
+                contextEntities.SaveChanges();
             }
 
             _form.DBView();

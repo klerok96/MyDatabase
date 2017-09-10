@@ -13,7 +13,6 @@ namespace MyDatabase
 {
     public partial class ViewWindow : Form
     {
-        string _connectionString;
         int _pageNumber = 0;
         int _pageSize = 10;
         int _quantityData = 0;
@@ -24,8 +23,6 @@ namespace MyDatabase
         public ViewWindow()
         {
             InitializeComponent();
-
-            _connectionString = @"server=LAPTOP-B6SOJQMR;Initial Catalog=Cars;Integrated Security=True;Persist Security Info=False;";
 
             dataGridView1.AllowUserToAddRows = false; //запрешаем пользователю самому добавлять строки
             dataGridView1.SelectionMode = DataGridViewSelectionMode.FullRowSelect;
@@ -110,18 +107,16 @@ namespace MyDatabase
 
         private void BtnDelete_Click(object sender, EventArgs e)
         {
-            string sqlExpression = "DELETE FROM Cars.dbo.Car WHERE CarID = @id";
+            int id = (int)dataGridView1.SelectedCells[0].Value;
 
-            string id = dataGridView1.SelectedCells[0].Value.ToString();
-
-            using (SqlConnection connection = new SqlConnection(_connectionString))
+            using (CarsEntities contextEntities = new CarsEntities())
             {
-                connection.Open();
+                Car carItem = (from ca in contextEntities.Cars
+                               where ca.CarID == id
+                               select ca).FirstOrDefault();
 
-                SqlCommand command = new SqlCommand(sqlExpression, connection);
-                command.Parameters.AddWithValue("@id", id);
-
-                command.ExecuteNonQuery();
+                contextEntities.Cars.Remove(carItem);
+                contextEntities.SaveChanges();
             }
 
             DBView();
